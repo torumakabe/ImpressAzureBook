@@ -1,0 +1,101 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "skuTier": {
+      "type": "string"
+    },
+    "skuName": {
+      "type": "string"
+    },
+    "skuCapacity": {
+      "type": "int"
+    },
+    "adminUsername": {
+      "type": "string"
+    },
+    "adminPassword": {
+      "type": "securestring"
+    },
+    "hostingPlanName": {
+      "type": "string"
+    },
+    "appDnsLabel": {
+      "type": "string"
+    },
+    "failoverGroupName": {
+      "type": "string"
+    },
+    "dbName": {
+      "type": "string"
+    },
+    "repoUrl": {
+      "type": "string"
+    },
+    "branch": {
+      "type": "string"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "name": "[parameters('hostingPlanName')]",
+      "apiVersion": "2016-09-01",
+      "location": "[parameters('location')]",
+      "sku": {
+        "tier": "[parameters('skuTier')]",
+        "name": "[parameters('skuName')]",
+        "capacity": "[parameters('skuCapacity')]"
+      },
+      "properties": {
+        "name": "[parameters('hostingPlanName')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "name": "[parameters('appDnsLabel')]",
+      "apiVersion": "2016-08-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "name": "[parameters('appDnsLabel')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]"
+      },
+      "resources": [
+        {
+          "type": "config",
+          "name": "connectionstrings",
+          "apiVersion": "2016-08-01",
+          "properties": {
+            "MyDbConnection": {
+              "value": "[concat('Data Source=tcp:', parameters('failoverGroupName'), '.database.windows.net', ',1433;Initial Catalog=', parameters('dbName'), ';User Id=', parameters('adminUsername'), ';Password=', parameters('adminPassword'), ';')]",
+              "type": "SQLAzure"
+            }
+          },
+          "dependsOn": [
+            "[concat('Microsoft.Web/Sites/', parameters('appDnsLabel'))]"
+          ]
+        },
+        {
+          "type": "sourcecontrols",
+          "name": "web",
+          "apiVersion": "2016-08-01",
+          "properties": {
+            "RepoUrl": "[parameters('repoUrl')]",
+            "branch": "[parameters('branch')]",
+            "IsManualIntegration": true
+          },
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites/', parameters('appDnsLabel'))]"
+          ]
+        }
+      ],
+      "dependsOn": [
+        "[concat('Microsoft.Web/serverFarms/', parameters('hostingPlanName'))]"
+      ]
+    }
+  ]
+}

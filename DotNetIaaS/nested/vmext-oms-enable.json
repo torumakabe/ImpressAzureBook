@@ -1,0 +1,76 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "appVmCount": {
+      "type": "int"
+    },
+    "appVmNamePrefix": {
+      "type": "string"
+    },
+    "jumpBoxVmCount": {
+      "type": "int"
+    },
+    "jumpBoxVmNamePrefix": {
+      "type": "string"
+    },
+    "omsWorkspaceId": {
+      "type": "string"
+    },
+    "omsWorkspaceKey": {
+      "type": "securestring"
+    }
+  },
+  "variables": {
+    "omsExtName": "omsext"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('appVmNamePrefix'), copyindex(), '/', variables('omsExtName'))]",
+      "apiVersion": "2017-03-30",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "extensionLoop",
+        "count": "[parameters('appVmCount')]"
+      },
+      "properties": {
+        "publisher": "Microsoft.EnterpriseCloud.Monitoring",
+        "type": "MicrosoftMonitoringAgent",
+        "typeHandlerVersion": "1.0",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "workspaceId": "[parameters('omsWorkspaceId')]"
+        },
+        "protectedSettings": {
+          "workspaceKey": "[parameters('omsWorkspaceKey')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('jumpBoxVmNamePrefix'), copyindex(), '/', variables('omsExtName'))]",
+      "apiVersion": "2017-03-30",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "extensionLoop",
+        "count": "[parameters('jumpBoxVmCount')]"
+      },
+      "properties": {
+        "publisher": "Microsoft.EnterpriseCloud.Monitoring",
+        "type": "MicrosoftMonitoringAgent",
+        "typeHandlerVersion": "1.0",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "workspaceId": "[parameters('omsWorkspaceId')]"
+        },
+        "protectedSettings": {
+          "workspaceKey": "[parameters('omsWorkspaceKey')]"
+        }
+      }
+    }
+  ]
+}

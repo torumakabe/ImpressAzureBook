@@ -1,0 +1,82 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "appVmCount": {
+      "type": "int"
+    },
+    "appVmNamePrefix": {
+      "type": "string"
+    },
+    "dockerRegistryImageName": {
+      "type": "string"
+    },
+    "dbAccountName": {
+      "type": "string"
+    },
+    "jumpBoxVmCount": {
+      "type": "int"
+    },
+    "jumpBoxVmNamePrefix": {
+      "type": "string"
+    },
+    "omsWorkspaceId": {
+      "type": "string"
+    },
+    "omsWorkspaceKey": {
+      "type": "securestring"
+    }
+  },
+  "variables": {
+    "csExtName": "csext",
+    "omsExtName": "omsext",
+    "singleQuote": "'"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('appVmNamePrefix'), copyindex(), '/', variables('csExtName'))]",
+      "apiVersion": "2017-03-30",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "extensionLoop",
+        "count": "[parameters('appVmCount')]"
+      },
+      "properties": {
+        "publisher": "Microsoft.Azure.Extensions",
+        "type": "CustomScript",
+        "typeHandlerVersion": "2.0",
+        "autoUpgradeMinorVersion": true,
+        "settings": {},
+        "protectedSettings": {
+          "commandToExecute": "[concat('docker run -d -p 80:8080 -e ', variables('singleQuote'), 'MONGO_URL=mongodb://', parameters('dbAccountName'), ':', listkeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('dbAccountName')), '2015-04-08').primaryMasterKey, '@', parameters('dbAccountName'), '.documents.azure.com:10255/?ssl=true', variables('singleQuote'), ' --name=', variables('singleQuote'), 'nodetodo', variables('singleQuote'), ' --restart=always ', parameters('dockerRegistryImageName'), ' && ', 'docker run --privileged -d -v /var/run/docker.sock:/var/run/docker.sock -e ', variables('singleQuote'), 'WSID=', parameters('omsWorkspaceId'), variables('singleQuote'), ' -e ', variables('singleQuote'), 'KEY=', parameters('omsWorkspaceKey'), variables('singleQuote'), ' -h=`hostname` -p 127.0.0.1:25225:25225 --name=', variables('singleQuote'), 'omsagent', variables('singleQuote'), ' --restart=always microsoft/oms && systemctl enable docker.service')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('jumpBoxVmNamePrefix'), copyindex(), '/', variables('omsExtName'))]",
+      "apiVersion": "2017-03-30",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "extensionLoop",
+        "count": "[parameters('jumpBoxVmCount')]"
+      },
+      "properties": {
+        "publisher": "Microsoft.EnterpriseCloud.Monitoring",
+        "type": "OmsAgentForLinux",
+        "typeHandlerVersion": "1.3",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "workspaceId": "[parameters('omsWorkspaceId')]"
+        },
+        "protectedSettings": {
+          "workspaceKey": "[parameters('omsWorkspaceKey')]"
+        }
+      }
+    }
+  ]
+}

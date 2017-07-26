@@ -1,0 +1,121 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "primaryLocation": {
+      "type": "string"
+    },
+    "tmDnsLabel": {
+      "type": "string"
+    },
+    "primaryAppDnsLabel": {
+      "type": "string"
+    },
+    "secondaryAppDnsLabel": {
+      "type": "string"
+    },
+    "primarySqlServerName": {
+      "type": "string"
+    },
+    "secondarySqlServerName": {
+      "type": "string"
+    },
+    "dbName": {
+      "type": "string"
+    },
+    "dbCollation": {
+      "type": "string"
+    },
+    "dbEdition": {
+      "type": "string"
+    },
+    "dbMaxSizeBytes": {
+      "type": "string"
+    },
+    "dbRequestedServiceObjectiveName": {
+      "type": "string"
+    },
+    "failoverGroupName": {
+      "type": "string"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "name": "[concat(parameters('primarySqlServerName'), '/', parameters('dbName'))]",
+      "apiVersion": "2015-05-01-preview",
+      "location": "[parameters('primaryLocation')]",
+      "properties": {
+        "edition": "[parameters('dbEdition')]",
+        "collation": "[parameters('dbCollation')]",
+        "maxSizeBytes": "[parameters('dbMaxSizeBytes')]",
+        "requestedServiceObjectiveName": "[parameters('dbRequestedServiceObjectiveName')]"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/failoverGroups",
+      "name": "[concat(parameters('primarySqlServerName'), '/', parameters('failoverGroupName'))]",
+      "apiVersion": "2015-05-01-preview",
+      "properties": {
+        "readWriteEndpoint": {
+          "failoverPolicy": "Automatic",
+          "failoverWithDataLossGracePeriodMinutes": 60
+        },
+        "partnerServers": [
+          {
+            "id": "[resourceId('Microsoft.Sql/servers', parameters('secondarySqlServerName'))]"
+          }
+        ],
+        "databases": [
+          "[resourceId('Microsoft.Sql/servers/databases', parameters('primarySqlServerName'), parameters('dbName'))]"
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('primarySqlServerName'), parameters('dbName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/trafficManagerProfiles",
+      "name": "trafficManager",
+      "apiVersion": "2017-05-01",
+      "location": "global",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/failoverGroups', parameters('primarySqlServerName'), parameters('failoverGroupName'))]"
+      ],
+      "properties": {
+        "profileStatus": "Enabled",
+        "trafficRoutingMethod": "Priority",
+        "dnsConfig": {
+          "relativeName": "[parameters('tmDnsLabel')]",
+          "ttl": 5
+        },
+        "monitorConfig": {
+          "protocol": "HTTP",
+          "port": 80,
+          "path": "/"
+        },
+        "endpoints": [
+          {
+            "type": "Microsoft.Network/trafficManagerProfiles/azureEndpoints",
+            "name": "primary",
+            "properties": {
+              "targetResourceId": "[resourceId('Microsoft.Web/sites/' ,parameters('primaryAppDnsLabel'))]",
+              "endpointStatus": "Enabled",
+              "priority": 1
+            }
+          },
+          {
+            "type": "Microsoft.Network/trafficManagerProfiles/azureEndpoints",
+            "name": "secondary",
+            "properties": {
+              "targetResourceId": "[resourceId('Microsoft.Web/sites/' ,parameters('secondaryAppDnsLabel'))]",
+              "endpointStatus": "Enabled",
+              "priority": 2
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

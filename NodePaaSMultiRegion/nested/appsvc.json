@@ -1,0 +1,85 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "skuTier": {
+      "type": "string"
+    },
+    "skuName": {
+      "type": "string"
+    },
+    "skuCapacity": {
+      "type": "int"
+    },
+    "hostingPlanName": {
+      "type": "string"
+    },
+    "hostingEnvironment": {
+      "type": "string"
+    },
+    "workerSizeId": {
+      "type": "string"
+    },
+    "appDnsLabel": {
+      "type": "string"
+    },
+    "dockerRegistryImageName": {
+      "type": "string"
+    },
+    "dbAccountName": {
+      "type": "string"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "name": "[parameters('hostingPlanName')]",
+      "apiVersion": "2016-09-01",
+      "location": "[parameters('location')]",
+      "kind": "linux",
+      "sku": {
+        "tier": "[parameters('skuTier')]",
+        "name": "[parameters('skuName')]",
+        "capacity": "[parameters('skuCapacity')]"
+      },
+      "properties": {
+        "name": "[parameters('hostingPlanName')]",
+        "workerSizeId": "[parameters('workerSizeId')]",
+        "reserved": true,
+        "numberOfWorkers": "1",
+        "hostingEnvironment": "[parameters('hostingEnvironment')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "name": "[parameters('appDnsLabel')]",
+      "apiVersion": "2016-08-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "name": "[parameters('appDnsLabel')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]",
+        "siteConfig": {
+          "appCommandLine": "",
+          "linuxFxVersion": "[concat('DOCKER|', parameters('dockerRegistryImageName'))]",
+          "appSettings": [
+            {
+              "name": "DOCKER_CUSTOM_IMAGE_NAME",
+              "value": "[parameters('dockerRegistryImageName')]"
+            },
+            {
+              "name": "MONGO_URL",
+              "value": "[concat('mongodb://', parameters('dbAccountName'), ':', listkeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('dbAccountName')), '2015-04-08').primaryMasterKey, '@', parameters('dbAccountName'), '.documents.azure.com:10255/?ssl=true')]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Web/serverFarms/', parameters('hostingPlanName'))]"
+      ]
+    }
+  ]
+}

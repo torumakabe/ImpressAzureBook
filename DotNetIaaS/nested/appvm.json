@@ -1,0 +1,311 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "adminUsername": {
+      "type": "string"
+    },
+    "adminPassword": {
+      "type": "securestring"
+    },
+    "diagStorageAccountName": {
+      "type": "string"
+    },
+    "virtualNetworkName": {
+      "type": "string"
+    },
+    "appSubnetName": {
+      "type": "string"
+    },
+    "appVmNsgName": {
+      "type": "string"
+    },
+    "appLbDnsLabel": {
+      "type": "string"
+    },
+    "appVmNamePrefix": {
+      "type": "string"
+    },
+    "appVmCount": {
+      "type": "int"
+    },
+    "appVmSize": {
+      "type": "string"
+    },
+    "vmSku": {
+      "type": "string"
+    },
+    "vmPublisher": {
+      "type": "string"
+    },
+    "vmOffer": {
+      "type": "string"
+    },
+    "sqlServerName": {
+      "type": "string"
+    },
+    "dbName": {
+      "type": "string"
+    },
+    "dscScriptsUrl": {
+      "type": "string"
+    },
+    "dscScript": {
+      "type": "string"
+    },
+    "dscFunction": {
+      "type": "string"
+    },
+    "webdeploypkg": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "appAvailsetName": "appavset",
+    "appLBName": "applb",
+    "appLBIPAddressName": "applbpip",
+    "appLBRuleName": "applbrule",
+    "appVmNicName": "[concat(parameters('appVmNamePrefix'),'nic')]",
+    "appVmDscExtName": "[concat(parameters('appVmNamePrefix'),'dscext')]",
+    "appVmAntiMalwareExtName": "[concat(parameters('appVmNamePrefix'),'amwext')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Compute/availabilitySets",
+      "name": "[variables('appAvailSetName')]",
+      "apiVersion": "2017-03-30",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Aligned"
+      },
+      "properties": {
+        "platformFaultDomainCount": 2,
+        "platformUpdateDomainCount": 5
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('appLBIPAddressName')]",
+      "apiVersion": "2017-06-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+          "domainNameLabel": "[parameters('appLbDnsLabel')]"
+        },
+        "idleTimeoutInMinutes": 4
+      }
+    },
+    {
+      "type": "Microsoft.Network/loadBalancers",
+      "name": "[variables('appLBName')]",
+      "apiVersion": "2017-06-01",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/',variables('appLBIPAddressName'))]"
+      ],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "LoadBalancerFrontend",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('appLBIPAddressName'))]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "LoadBalancerBackend"
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "name": "[variables('appLBRuleName')]",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers',variables('appLBName')),'/frontendIPConfigurations/LoadBalancerFrontend')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers',variables('appLBName')), '/backendAddressPools/LoadBalancerBackend')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 80,
+              "backendPort": 80,
+              "enableFloatingIP": false,
+              "idleTimeoutInMinutes": 5,
+              "probe": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers',variables('appLBName')),'/probes/lbProbe')]"
+              }
+            }
+          }
+        ],
+        "probes": [
+          {
+            "properties": {
+              "protocol": "Tcp",
+              "port": 80,
+              "intervalInSeconds": 15,
+              "numberOfProbes": "[parameters('appVmCount')]"
+            },
+            "name": "lbProbe"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(variables('appVmNicName'), copyindex())]",
+      "apiVersion": "2017-06-01",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/loadBalancers/', variables('appLBName'))]"
+      ],
+      "copy": {
+        "name": "appNicLoop",
+        "count": "[parameters('appVmCount')]"
+      },
+      "properties": {
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('appVmNsgName'))]"
+        },
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('appSubnetName'))]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('appLBName')), '/backendAddressPools/LoadBalancerBackend')]"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[concat(parameters('appVmNamePrefix'), copyindex())]",
+      "apiVersion": "2017-03-30",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkInterfaces/', variables('appVmNicName'), copyindex())]",
+        "[concat('Microsoft.Compute/availabilitySets/', variables('appAvailSetName'))]"
+      ],
+      "copy": {
+        "name": "appVMLoop",
+        "count": "[parameters('appVmCount')]"
+      },
+      "properties": {
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets', concat(variables('appAvailSetName')))]"
+        },
+        "hardwareProfile": {
+          "vmSize": "[parameters('appVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(parameters('appVmNamePrefix'), copyindex())]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "Publisher": "[parameters('vmPublisher')]",
+            "offer": "[parameters('vmOffer')]",
+            "sku": "[parameters('vmSku')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat(parameters('appVmNamePrefix'), 'md', copyindex())]",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            },
+            "diskSizeGB": 32
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('appVmNicName'), copyindex()))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true,
+            "storageUri": "[reference(concat('Microsoft.Storage/storageAccounts/', parameters('diagStorageAccountName')), '2017-06-01').primaryEndpoints.blob]"
+          }
+        }
+      },
+      "resources": [
+        {
+          "type": "extensions",
+          "name": "[concat(variables('appVmDscExtName'), copyindex())]",
+          "location": "[parameters('location')]",
+          "apiVersion": "2017-03-30",
+          "dependsOn": [
+            "[concat('Microsoft.Compute/virtualMachines/', parameters('appVmNamePrefix'), copyindex())]"
+          ],
+          "properties": {
+            "publisher": "Microsoft.Powershell",
+            "type": "DSC",
+            "typeHandlerVersion": "2.9",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "configuration": {
+                "url": "[parameters('dscScriptsUrl')]",
+                "script": "[parameters('dscScript')]",
+                "function": "[parameters('dscfunction')]"
+              },
+              "configurationArguments": {
+                "machineName": "[concat(parameters('appVmNamePrefix'), copyindex())]",
+                "webDeployPackagePath": "[parameters('webdeploypkg')]",
+                "dbServerName": "[parameters('sqlServerName')]",
+                "dbName": "[parameters('dbName')]"
+              }
+            },
+            "protectedSettings": {
+              "configurationArguments": {
+                "serverCredential": {
+                  "UserName": "[parameters('adminUserName')]",
+                  "Password": "[parameters('adminPassword')]"
+                },
+                "dbCredential": {
+                  "UserName": "[parameters('adminUserName')]",
+                  "Password": "[parameters('adminPassword')]"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "extensions",
+          "name": "[concat(variables('appVmAntiMalwareExtName'), copyindex())]",
+          "location": "[parameters('location')]",
+          "apiVersion": "2017-03-30",
+          "dependsOn": [
+            "[concat('Microsoft.Compute/virtualMachines/', parameters('appVmNamePrefix'), copyindex())]"
+          ],
+          "properties": {
+            "publisher": "Microsoft.Azure.Security",
+            "type": "IaaSAntimalware",
+            "typeHandlerVersion": "1.5",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "AntimalwareEnabled": "true"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

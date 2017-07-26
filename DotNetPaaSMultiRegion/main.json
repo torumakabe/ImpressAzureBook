@@ -1,0 +1,319 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "primaryLocation": {
+      "type": "string",
+      "defaultValue": "japaneast",
+      "allowedValues": [
+        "japanwest",
+        "japaneast",
+        "westus",
+        "westus2",
+        "eastus2",
+        "southeastasia"
+      ],
+      "metadata": {
+        "description": "Site location (Primary)"
+      }
+    },
+    "secondaryLocation": {
+      "type": "string",
+      "defaultValue": "japanwest",
+      "allowedValues": [
+        "japanwest",
+        "japaneast",
+        "westus",
+        "westus2",
+        "southeastasia"
+      ],
+      "metadata": {
+        "description": "Site location (Secondary)"
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8,
+      "metadata": {
+        "description": "General prefix of your resources (1 to 8 charactors)"
+      }
+    },
+    "skuTier": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium"
+      ],
+      "metadata": {
+        "description": "App Service Plan Tier"
+      }
+    },
+    "skuName": {
+      "type": "string",
+      "defaultValue": "S1",
+      "allowedValues": [
+        "S1",
+        "S2",
+        "S3",
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+      ],
+      "metadata": {
+        "description": "App Service Plan SKU Name"
+      }
+    },
+    "skuCapacity": {
+      "type": "int",
+      "defaultValue": 2,
+      "minValue": 1,
+      "metadata": {
+        "description": "App Service Plan's instance count"
+      }
+    },
+    "tmDnsLabel": {
+      "type": "string",
+      "metadata": {
+        "description": "DNS Label of traffic manager profile (Scope:Global e.g. <tmDnsLabel>.trafficmanager.net"
+      }
+    },
+    "appDnsLabel": {
+      "type": "string",
+      "metadata": {
+        "description": "DNS label of application (Scope:Global e.g. <appLbDnsLabel>.azurewebsites.net)"
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Admin username for databases"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "minLength": 12,
+      "metadata": {
+        "description": "Admin password for databases (Min Length: 12)"
+      }
+    },
+    "dbName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of database"
+      }
+    },
+    "dbCollation": {
+      "type": "string",
+      "defaultValue": "Japanese_CI_AS",
+      "metadata": {
+        "description": "Database collation"
+      }
+    },
+    "dbEdition": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium"
+      ],
+      "metadata": {
+        "description": "Edition of database"
+      }
+    },
+    "dbMaxSizeBytes": {
+      "type": "string",
+      "defaultValue": "1073741824",
+      "metadata": {
+        "description": "Maximum size for the database (Byte)"
+      }
+    },
+    "dbRequestedServiceObjectiveName": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "S0",
+        "S1",
+        "S2",
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "metadata": {
+        "description": "Performance level for Edition"
+      }
+    },
+    "repoUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "SCM repository URL"
+      }
+    },
+    "branch": {
+      "type": "string",
+      "metadata": {
+        "description": "SCM repository branch"
+      }
+    }
+  },
+  "variables": {
+    "locations": [
+      {
+        "name": "[parameters('primaryLocation')]"
+      },
+      {
+        "name": "[parameters('secondaryLocation')]"
+      }
+    ],
+    "sqlServerTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/sqlserver.json')]",
+    "appServiceTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/appsvc.json')]",
+    "sharedTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/shared.json')]",
+    "sqlServerName": "[concat(parameters('prefix'), 'sqlsv', uniqueString(resourceGroup().id))]",
+    "failoverGroupName": "[concat(parameters('prefix'), 'fg', uniqueString(resourceGroup().id))]",
+    "hostingPlanName": "[concat(parameters('prefix'), 'plan', uniqueString(resourceGroup().id))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "[concat('sqlServerTemplateLink', copyindex())]",
+      "apiVersion": "2016-09-01",
+      "copy": {
+        "name": "sqlsvLoop",
+        "count": "[length(variables('locations'))]"
+      },
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('sqlServerTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[variables('locations')[copyIndex()].name]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "sqlServerName": {
+            "value": "[concat(variables('sqlServerName'), copyindex())]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "[concat('appServiceTemplateLink', copyindex())]",
+      "apiVersion": "2016-09-01",
+      "copy": {
+        "name": "appSvcLoop",
+        "count": "[length(variables('locations'))]"
+      },
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('appServiceTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[variables('locations')[copyIndex()].name]"
+          },
+          "skuTier": {
+            "value": "[parameters('skuTier')]"
+          },
+          "skuName": {
+            "value": "[parameters('skuName')]"
+          },
+          "skuCapacity": {
+            "value": "[parameters('skuCapacity')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "hostingPlanName": {
+            "value": "[concat(variables('hostingPlanName'), copyindex())]"
+          },
+          "appDnsLabel": {
+            "value": "[concat(parameters('appDnsLabel'),copyindex())]"
+          },
+          "failoverGroupName": {
+            "value": "[concat(variables('failoverGroupName'))]"
+          },
+          "dbName": {
+            "value": "[parameters('dbName')]"
+          },
+          "repoUrl": {
+            "value": "[parameters('repoUrl')]"
+          },
+          "branch": {
+            "value": "[parameters('branch')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "sharedTemplateLink",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', 'sqlServerTemplateLink', '0')]",
+        "[concat('Microsoft.Resources/deployments/', 'sqlServerTemplateLink', '1')]",
+        "[concat('Microsoft.Resources/deployments/', 'appServiceTemplateLink', '0')]",
+        "[concat('Microsoft.Resources/deployments/', 'appServiceTemplateLink', '1')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('sharedTemplateUrl')]"
+        },
+        "parameters": {
+          "primaryLocation": {
+            "value": "[parameters('primaryLocation')]"
+          },
+          "tmDnsLabel": {
+            "value": "[parameters('tmDnsLabel')]"
+          },
+          "primaryAppDnsLabel": {
+            "value": "[concat(parameters('appDnsLabel'), '0')]"
+          },
+          "secondaryAppDnsLabel": {
+            "value": "[concat(parameters('appDnsLabel'), '1')]"
+          },
+          "primarySqlServerName": {
+            "value": "[concat(variables('sqlServerName'), '0')]"
+          },
+          "secondarySqlServerName": {
+            "value": "[concat(variables('sqlServerName'), '1')]"
+          },
+          "dbName": {
+            "value": "[parameters('dbName')]"
+          },
+          "dbCollation": {
+            "value": "[parameters('dbCollation')]"
+          },
+          "dbEdition": {
+            "value": "[parameters('dbEdition')]"
+          },
+          "dbMaxSizeBytes": {
+            "value": "[parameters('dbMaxSizeBytes')]"
+          },
+          "dbRequestedServiceObjectiveName": {
+            "value": "[parameters('dbRequestedServiceObjectiveName')]"
+          },
+          "failoverGroupName": {
+            "value": "[variables('failoverGroupName')]"
+          }
+        }
+      }
+    }
+  ]
+}

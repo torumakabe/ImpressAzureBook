@@ -1,0 +1,43 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "primaryLocation": {
+      "type": "String"
+    },
+    "secondaryLocation": {
+      "type": "String"
+    },
+    "dbAccountName": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DocumentDb/databaseAccounts",
+      "name": "[parameters('dbAccountName')]",
+      "apiVersion": "2016-03-31",
+      "location": "[parameters('primaryLocation')]",
+      "kind": "MongoDB",
+      "properties": {
+        "databaseAccountOfferType": "Standard",
+        "consistencyPolicy": {
+          "defaultConsistencyLevel": "Session"
+        },
+        "locations": [
+          {
+            "id": "[concat(parameters('dbAccountName'), '-', parameters('primaryLocation'))]",
+            "failoverPriority": 0,
+            "locationName": "[parameters('primaryLocation')]"
+          },
+          {
+            "id": "[concat(parameters('dbAccountName'), '-', parameters('secondaryLocation'))]",
+            "failoverPriority": 1,
+            "locationName": "[parameters('secondaryLocation')]"
+          }
+        ],
+        "enableAutomaticFailover": true
+      }
+    }
+  ]
+}

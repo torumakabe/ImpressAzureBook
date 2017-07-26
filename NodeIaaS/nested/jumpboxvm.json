@@ -1,0 +1,184 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "adminUsername": {
+      "type": "string"
+    },
+    "sshKeyData": {
+      "type": "securestring"
+    },
+    "diagStorageAccountName": {
+      "type": "string"
+    },
+    "virtualNetworkName": {
+      "type": "string"
+    },
+    "jumpboxSubnetName": {
+      "type": "string"
+    },
+    "jumpboxVmNsgName": {
+      "type": "string"
+    },
+    "jumpBoxDnsLabel": {
+      "type": "string"
+    },
+    "jumpBoxVmNamePrefix": {
+      "type": "string"
+    },
+    "jumpBoxVmCount": {
+      "type": "int"
+    },
+    "jumpboxVmSize": {
+      "type": "string"
+    },
+    "vmSku": {
+      "type": "string"
+    },
+    "vmPublisher": {
+      "type": "string"
+    },
+    "vmOffer": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "jumpBoxAvailsetName": "jumpboxavset",
+    "jumpBoxIPAddressName": "jumpboxvmpip",
+    "jumpBoxVmNicName": "[concat(parameters('jumpboxVmNamePrefix'), 'nic')]",
+    "sshKeyPath": "[concat('/home/',parameters('adminUsername'),'/.ssh/authorized_keys')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Compute/availabilitySets",
+      "name": "[variables('jumpBoxAvailSetName')]",
+      "apiVersion": "2017-03-30",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Aligned"
+      },
+      "properties": {
+        "platformFaultDomainCount": 2,
+        "platformUpdateDomainCount": 5
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[concat(variables('jumpBoxIPAddressName'), copyindex())]",
+      "apiVersion": "2017-06-01",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "jumpBoxPipLoop",
+        "count": "[parameters('jumpBoxVmCount')]"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[concat(parameters('jumpBoxDnsLabel'), copyindex())]"
+        },
+        "idleTimeoutInMinutes": 4
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(variables('jumpBoxVmNicName'), copyindex())]",
+      "apiVersion": "2017-06-01",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/', variables('jumpBoxIPAddressName'), copyindex())]"
+      ],
+      "copy": {
+        "name": "jumpBoxNicLoop",
+        "count": "[parameters('jumpBoxVmCount')]"
+      },
+      "properties": {
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('jumpBoxVmNsgName'))]"
+        },
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('jumpBoxSubnetName'))]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('jumpBoxIPAddressName'), copyindex()))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[concat(parameters('jumpboxVmNamePrefix'), copyindex())]",
+      "apiVersion": "2017-03-30",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkInterfaces/', variables('jumpBoxVmNicName'), copyindex())]",
+        "[concat('Microsoft.Compute/availabilitySets/',variables('jumpBoxAvailSetName'))]"
+      ],
+      "copy": {
+        "name": "jumpBoxVmLoop",
+        "count": "[parameters('jumpBoxVmCount')]"
+      },
+      "properties": {
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets',concat(variables('jumpBoxAvailSetName')))]"
+        },
+        "hardwareProfile": {
+          "vmSize": "[parameters('jumpBoxVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('jumpboxVmNamePrefix')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "linuxConfiguration": {
+            "disablePasswordAuthentication": true,
+            "ssh": {
+              "publicKeys": [
+                {
+                  "path": "[variables('sshKeyPath')]",
+                  "keyData": "[parameters('sshKeyData')]"
+                }
+              ]
+            }
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "Publisher": "[parameters('vmPublisher')]",
+            "offer": "[parameters('vmOffer')]",
+            "sku": "[parameters('vmSku')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat(parameters('jumpboxVmNamePrefix'),'md',copyindex())]",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            },
+            "diskSizeGB": 32
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('jumpBoxVmNicName'), copyindex()))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true,
+            "storageUri": "[reference(concat('Microsoft.Storage/storageAccounts/', parameters('diagStorageAccountName')), '2017-06-01').primaryEndpoints.blob]"
+          }
+        }
+      }
+    }
+  ]
+}

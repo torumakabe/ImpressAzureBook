@@ -1,0 +1,169 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "japaneast",
+      "allowedValues": [
+        "japanwest",
+        "japaneast",
+        "westus",
+        "westus2",
+        "eastus2",
+        "southeastasia"
+      ],
+      "metadata": {
+        "description": "Site location"
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8,
+      "metadata": {
+        "description": "General prefix of your resources (1 to 8 charactors)"
+      }
+    },
+    "hostingEnvironment": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Name of hosting environment"
+      }
+    },
+    "skuTier": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium"
+      ],
+      "metadata": {
+        "description": "App Service Plan Tier"
+      }
+    },
+    "skuName": {
+      "type": "string",
+      "defaultValue": "S1",
+      "allowedValues": [
+        "S1",
+        "S2",
+        "S3",
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+      ],
+      "metadata": {
+        "description": "App Service Plan SKU Name"
+      }
+    },
+    "skuCapacity": {
+      "type": "int",
+      "defaultValue": 2,
+      "minValue": 1,
+      "metadata": {
+        "description": "App Service Plan's instance count"
+      }
+    },
+    "appDnsLabel": {
+      "type": "string",
+      "metadata": {
+        "description": "DNS label of application (Scope:Global e.g. <appLbDnsLabel>.azurewebsites.net)"
+      }
+    },
+    "workerSizeId": {
+      "type": "string",
+      "defaultValue": "0",
+      "metadata": {
+        "description": "Size of App Service worker"
+      }
+    },
+    "dockerRegistryImageName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of Docker image"
+      }
+    },
+    "dbAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of Cosmos DB (MongoDB)"
+      }
+    }
+  },
+  "variables": {
+    "dbTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/db.json')]",
+    "appServiceTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/appsvc.json')]",
+    "hostingPlanName": "[concat(parameters('prefix'), 'plan', uniqueString(resourceGroup().id))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "dbTemplateLink",
+      "apiVersion": "2016-09-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('dbTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "dbAccountName": {
+            "value": "[parameters('dbAccountName')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "appServiceTemplateLink",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', 'dbTemplateLink')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('appServiceTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "skuTier": {
+            "value": "[parameters('skuTier')]"
+          },
+          "skuName": {
+            "value": "[parameters('skuName')]"
+          },
+          "skuCapacity": {
+            "value": "[parameters('skuCapacity')]"
+          },
+          "workerSizeId": {
+            "value": "[parameters('workerSizeId')]"
+          },
+          "hostingPlanName": {
+            "value": "[variables('hostingPlanName')]"
+          },
+          "hostingEnvironment": {
+            "value": "[parameters('hostingEnvironment')]"
+          },
+          "appDnsLabel": {
+            "value": "[parameters('appDnsLabel')]"
+          },
+          "dockerRegistryImageName": {
+            "value": "[parameters('dockerRegistryImageName')]"
+          },
+          "dbAccountName": {
+            "value": "[parameters('dbAccountName')]"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "tmDnsLabel": {
+      "type": "string"
+    },
+    "primaryAppDnsLabel": {
+      "type": "string"
+    },
+    "secondaryAppDnsLabel": {
+      "type": "string"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Network/trafficManagerProfiles",
+      "name": "trafficManager",
+      "apiVersion": "2017-05-01",
+      "location": "global",
+      "properties": {
+        "profileStatus": "Enabled",
+        "trafficRoutingMethod": "Priority",
+        "dnsConfig": {
+          "relativeName": "[parameters('tmDnsLabel')]",
+          "ttl": 5
+        },
+        "monitorConfig": {
+          "protocol": "HTTP",
+          "port": 80,
+          "path": "/"
+        },
+        "endpoints": [
+          {
+            "type": "Microsoft.Network/trafficManagerProfiles/azureEndpoints",
+            "name": "primary",
+            "properties": {
+              "targetResourceId": "[resourceId('Microsoft.Web/sites/' ,parameters('primaryAppDnsLabel'))]",
+              "endpointStatus": "Enabled",
+              "priority": 1
+            }
+          },
+          {
+            "type": "Microsoft.Network/trafficManagerProfiles/azureEndpoints",
+            "name": "secondary",
+            "properties": {
+              "targetResourceId": "[resourceId('Microsoft.Web/sites/' ,parameters('secondaryAppDnsLabel'))]",
+              "endpointStatus": "Enabled",
+              "priority": 2
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

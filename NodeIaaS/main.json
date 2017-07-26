@@ -1,0 +1,419 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "japaneast",
+      "allowedValues": [
+        "japanwest",
+        "japaneast",
+        "westus",
+        "westus2",
+        "eastus2",
+        "southeastasia"
+      ],
+      "metadata": {
+        "description": "Site location"
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8,
+      "metadata": {
+        "description": "General prefix of your resources (1 to 8 charactors)"
+      }
+    },
+    "jumpBoxDnsLabel": {
+      "type": "string",
+      "metadata": {
+        "description": "DNS label of jumpbox (Scope:Region e.g. <jumpBoxDnsLabel>.japaneast.cloudapp.azure.com)"
+      }
+    },
+    "appLbDnsLabel": {
+      "type": "string",
+      "metadata": {
+        "description": "DNS label of application load balancer (Scope:Region e.g. <appLbDnsLabel>.japaneast.cloudapp.azure.com)"
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Admin username for virtual machines & databases"
+      }
+    },
+    "sshKeyData": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Public key for SSH authentication"
+      }
+    },
+    "appVmCount": {
+      "type": "int",
+      "defaultValue": 2,
+      "metadata": {
+        "description": "Number of app servers"
+      }
+    },
+    "appVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D1_v2",
+      "metadata": {
+        "description": "Size of app servers"
+      }
+    },
+    "appVmSku": {
+      "type": "string",
+      "defaultValue": "Stable",
+      "metadata": {
+        "description": "SKU of app servers"
+      }
+    },
+    "appVmPublisher": {
+      "type": "string",
+      "defaultValue": "CoreOS",
+      "metadata": {
+        "description": "Publisher of app servers"
+      }
+    },
+    "appVmOffer": {
+      "type": "string",
+      "defaultValue": "CoreOS",
+      "metadata": {
+        "description": "Offer of app servers"
+      }
+    },
+    "dockerRegistryImageName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of Docker image"
+      }
+    },
+    "jumpBoxVmCount": {
+      "type": "int",
+      "defaultValue": 1,
+      "metadata": {
+        "description": "Number of jumpbox servers"
+      }
+    },
+    "jumpBoxVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_A1_v2",
+      "metadata": {
+        "description": "Size of jumpbox servers"
+      }
+    },
+    "jumpBoxVmSku": {
+      "type": "string",
+      "defaultValue": "16.04-LTS",
+      "metadata": {
+        "description": "SKU of jumpbox servers"
+      }
+    },
+    "jumpBoxVmPublisher": {
+      "type": "string",
+      "defaultValue": "Canonical",
+      "metadata": {
+        "description": "Publisher of jumpbox servers"
+      }
+    },
+    "jumpBoxVmOffer": {
+      "type": "string",
+      "defaultValue": "UbuntuServer",
+      "metadata": {
+        "description": "Offer of jumpbox servers"
+      }
+    },
+    "dbAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of Cosmos DB (MongoDB)"
+      }
+    },
+    "oms": {
+      "type": "string",
+      "defaultValue": "disable",
+      "allowedValues": [
+        "enable",
+        "disable"
+      ],
+      "metadata": {
+        "description": "Switch to enable or disable OMS Monitoring"
+      }
+    },
+    "omsWorkspaceId": {
+      "type": "string",
+      "defaultValue": "dummy",
+      "metadata": {
+        "description": "OMS Workspece ID"
+      }
+    },
+    "omsWorkspaceKey": {
+      "type": "securestring",
+      "defaultValue": "dummy",
+      "metadata": {
+        "description": "OMS Workspece Key"
+      }
+    }
+  },
+  "variables": {
+    "sharedTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/shared.json')]",
+    "appVmTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/appvm.json')]",
+    "jumpBoxVmTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/jumpboxvm.json')]",
+    "vmExtTemplateUrl": "[uri(deployment().properties.templateLink.uri, concat('nested/vmext-oms-', parameters('oms'), '.json'))]",
+    "dbTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/db.json')]",
+    "diagStorageAccountName": "[concat(parameters('prefix'), 'dg', uniqueString(resourceGroup().id))]",
+    "virtualNetwork": {
+      "name": "defaultvnet",
+      "addressPrefix": "10.0.0.0/16",
+      "subnets": {
+        "jumpBoxSubnet": {
+          "name": "jumpboxsubnet",
+          "addressPrefix": "10.0.1.0/24",
+          "nsg": "jumpboxsubnetnsg"
+        },
+        "appSubnet": {
+          "name": "appsubnet",
+          "addressPrefix": "10.0.2.0/24",
+          "nsg": "appsubnetnsg"
+        }
+      }
+    },
+    "appVmNamePrefix": "appvm",
+    "appVmNsgName": "appvmnsg",
+    "jumpBoxVmNamePrefix": "jumpboxvm",
+    "jumpBoxVmNsgName": "jumpboxvmnsg"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "sharedTemplateLink",
+      "apiVersion": "2016-09-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('sharedTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "diagStorageAccountName": {
+            "value": "[variables('diagStorageAccountName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetwork').name]"
+          },
+          "virtualNetworkAddressPrefix": {
+            "value": "[variables('virtualNetwork').addressPrefix]"
+          },
+          "jumpboxSubnetName": {
+            "value": "[variables('virtualNetwork').subnets.jumpBoxSubnet.name]"
+          },
+          "jumpboxSubnetAddressPrefix": {
+            "value": "[variables('virtualNetwork').subnets.jumpBoxSubnet.addressPrefix]"
+          },
+          "jumpBoxSubnetNsgName": {
+            "value": "[variables('virtualNetwork').subnets.jumpBoxSubnet.nsg]"
+          },
+          "appSubnetName": {
+            "value": "[variables('virtualNetwork').subnets.appSubnet.name]"
+          },
+          "appSubnetAddressPrefix": {
+            "value": "[variables('virtualNetwork').subnets.appSubnet.addressPrefix]"
+          },
+          "appSubnetNsgName": {
+            "value": "[variables('virtualNetwork').subnets.appSubnet.nsg]"
+          },
+          "appVmNsgName": {
+            "value": "[variables('appVmNsgName')]"
+          },
+          "jumpBoxVmNsgName": {
+            "value": "[variables('jumpBoxVmNsgName')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "dbTemplateLink",
+      "apiVersion": "2016-09-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('dbTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "dbAccountName": {
+            "value": "[parameters('dbAccountName')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "appVmTemplateLink",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', 'sharedTemplateLink')]",
+        "[concat('Microsoft.Resources/deployments/', 'dbTemplateLink')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('appVmTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "sshKeyData": {
+            "value": "[parameters('sshKeyData')]"
+          },
+          "diagStorageAccountName": {
+            "value": "[variables('diagStorageAccountName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetwork').name]"
+          },
+          "appSubnetName": {
+            "value": "[variables('virtualNetwork').subnets.appSubnet.name]"
+          },
+          "appVmNsgName": {
+            "value": "[variables('appVmNsgName')]"
+          },
+          "appLbDnsLabel": {
+            "value": "[parameters('appLbDnsLabel')]"
+          },
+          "appVmNamePrefix": {
+            "value": "[variables('appVmNamePrefix')]"
+          },
+          "appVmCount": {
+            "value": "[parameters('appVmCount')]"
+          },
+          "appVmSize": {
+            "value": "[parameters('appVmSize')]"
+          },
+          "vmSku": {
+            "value": "[parameters('appVmSku')]"
+          },
+          "vmPublisher": {
+            "value": "[parameters('appVmPublisher')]"
+          },
+          "vmOffer": {
+            "value": "[parameters('appVmOffer')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "jumpBoxVmTemplateLink",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', 'sharedTemplateLink')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('jumpBoxVmTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "sshKeyData": {
+            "value": "[parameters('sshKeyData')]"
+          },
+          "diagStorageAccountName": {
+            "value": "[variables('diagStorageAccountName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetwork').name]"
+          },
+          "jumpBoxSubnetName": {
+            "value": "[variables('virtualNetwork').subnets.jumpBoxSubnet.name]"
+          },
+          "jumpBoxVmNsgName": {
+            "value": "[variables('jumpBoxVmNsgName')]"
+          },
+          "jumpBoxDnsLabel": {
+            "value": "[parameters('jumpBoxDnsLabel')]"
+          },
+          "jumpBoxVmNamePrefix": {
+            "value": "[variables('jumpBoxVmNamePrefix')]"
+          },
+          "jumpBoxVmCount": {
+            "value": "[parameters('jumpBoxVmCount')]"
+          },
+          "jumpboxVmSize": {
+            "value": "[parameters('jumpboxVmSize')]"
+          },
+          "vmSku": {
+            "value": "[parameters('jumpBoxVmSku')]"
+          },
+          "vmPublisher": {
+            "value": "[parameters('jumpBoxVmPublisher')]"
+          },
+          "vmOffer": {
+            "value": "[parameters('jumpBoxVmOffer')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "vmExtTemplatelink",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', 'appvmTemplateLink')]",
+        "[concat('Microsoft.Resources/deployments/', 'jumpboxvmTemplateLink')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('vmExtTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appVmCount": {
+            "value": "[parameters('appVmCount')]"
+          },
+          "appVmNamePrefix": {
+            "value": "[variables('appVmNamePrefix')]"
+          },
+          "dbAccountName": {
+            "value": "[parameters('dbAccountName')]"
+          },
+          "dockerRegistryImageName": {
+            "value": "[parameters('dockerRegistryImageName')]"
+          },
+          "jumpBoxVmCount": {
+            "value": "[parameters('jumpBoxVmCount')]"
+          },
+          "jumpBoxVmNamePrefix": {
+            "value": "[variables('jumpBoxVmNamePrefix')]"
+          },
+          "omsWorkspaceId": {
+            "value": "[parameters('omsWorkspaceId')]"
+          },
+          "omsWorkspaceKey": {
+            "value": "[parameters('omsWorkspaceKey')]"
+          }
+        }
+      }
+    }
+  ]
+}

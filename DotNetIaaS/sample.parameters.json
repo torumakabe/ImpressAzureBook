@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "japaneast"
+    },
+    "prefix": {
+      "value": "azbook"
+    },
+    "jumpBoxDnsLabel": {
+      "value": "azbookjb01"
+    },
+    "appLbDnsLabel": {
+      "value": "azbookal01"
+    },
+    "adminUsername": {
+      "value": "azuser"
+    },
+    "adminPassword": {
+      "value": "!P@ss_w0rd#"
+    },
+    "appVmCount": {
+      "value": 2
+    },
+    "jumpBoxVmCount": {
+      "value": 1
+    },
+    "dbName": {
+      "value": "azbookdb01"
+    },
+    "dscScriptsUrl": {
+      "value": "https://github.com/ToruMakabe/PracticalBook4Azure/raw/master/DotNetIaaS/DSC/ConfigureAppServer.ps1.zip"
+    },
+    "dscScript": {
+      "value": "ConfigureAppServer.ps1"
+    },
+    "dscFunction": {
+      "value": "Main"
+    },
+    "webdeploypkg": {
+      "value": "https://github.com/ToruMakabe/PracticalBook4Azure/raw/master/DotNetIaaS/webdeploypkg/DotNetAppSqlDb.zip"
+    },
+    "oms": {
+      "value": "disabled"
+    },
+    "omsWorkspaceId": {
+      "value": "1111111-22222222-33333333-44444444-55555555"
+    },
+    "omsWorkspaceKey": {
+      "value": "AZBOOK+azbook/123456AzBook+aZbOOK/azb00kAZBOOK+azbook/123456AzBook+aZbOOK+azb00k=="
+    }
+  }
+}

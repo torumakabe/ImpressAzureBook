@@ -1,0 +1,489 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "japaneast",
+      "allowedValues": [
+        "japanwest",
+        "japaneast",
+        "westus",
+        "westus2",
+        "eastus2",
+        "southeastasia"
+      ],
+      "metadata": {
+        "description": "Site location"
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8,
+      "metadata": {
+        "description": "General prefix of your resources (1 to 8 charactors)"
+      }
+    },
+    "jumpBoxDnsLabel": {
+      "type": "string",
+      "metadata": {
+        "description": "DNS label of jumpbox (Scope:Region e.g. <jumpBoxDnsLabel>.japaneast.cloudapp.azure.com)"
+      }
+    },
+    "appLbDnsLabel": {
+      "type": "string",
+      "metadata": {
+        "description": "DNS label of application load balancer (Scope:Region e.g. <appLbDnsLabel>.japaneast.cloudapp.azure.com)"
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Admin username for windows server virtual machines & sql databases"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "minLength": 12,
+      "metadata": {
+        "description": "Admin password for windows server virtual machines & sql databases (Min Length: 12)"
+      }
+    },
+    "appVmCount": {
+      "type": "int",
+      "defaultValue": 2,
+      "metadata": {
+        "description": "Number of app servers"
+      }
+    },
+    "appVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D1_v2",
+      "metadata": {
+        "description": "Size of app servers"
+      }
+    },
+    "jumpBoxVmCount": {
+      "type": "int",
+      "defaultValue": 1,
+      "metadata": {
+        "description": "Number of jumpbox servers"
+      }
+    },
+    "jumpBoxVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_A1_v2",
+      "metadata": {
+        "description": "Size of jumpbox servers"
+      }
+    },
+    "vmSku": {
+      "type": "string",
+      "defaultValue": "2016-Datacenter-smalldisk",
+      "metadata": {
+        "description": "SKU of servers"
+      }
+    },
+    "vmPublisher": {
+      "type": "string",
+      "defaultValue": "MicrosoftWindowsServer",
+      "metadata": {
+        "description": "Publisher of servers"
+      }
+    },
+    "vmOffer": {
+      "type": "string",
+      "defaultValue": "WindowsServer",
+      "metadata": {
+        "description": "Offer of servers"
+      }
+    },
+    "dbName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of database"
+      }
+    },
+    "dbCollation": {
+      "type": "string",
+      "defaultValue": "Japanese_CI_AS",
+      "metadata": {
+        "description": "Database collation"
+      }
+    },
+    "dbEdition": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium"
+      ],
+      "metadata": {
+        "description": "Edition of database"
+      }
+    },
+    "dbMaxSizeBytes": {
+      "type": "string",
+      "defaultValue": "1073741824",
+      "metadata": {
+        "description": "Maximum size for the database (Byte)"
+      }
+    },
+    "dbRequestedServiceObjectiveName": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "S0",
+        "S1",
+        "S2",
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "metadata": {
+        "description": "Performance level for Edition"
+      }
+    },
+    "dscScriptsUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "URL for downloading the PowerShell DSC module file"
+      }
+    },
+    "dscScript": {
+      "type": "string",
+      "metadata": {
+        "description": "PowerShell DSC configuration - Script"
+      }
+    },
+    "dscFunction": {
+      "type": "string",
+      "metadata": {
+        "description": "PowerShell DSC configuration - Function"
+      }
+    },
+    "webdeploypkg": {
+      "type": "string",
+      "metadata": {
+        "description": "URL for Web Deploy package"
+      }
+    },
+    "oms_enable": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Switch to enable or disable OMS Monitoring"
+      }
+    },
+    "omsWorkspaceId": {
+      "type": "string",
+      "defaultValue": "dummy",
+      "metadata": {
+        "description": "OMS Workspece ID"
+      }
+    },
+    "omsWorkspaceKey": {
+      "type": "securestring",
+      "defaultValue": "dummy",
+      "metadata": {
+        "description": "OMS Workspece Key"
+      }
+    }
+  },
+  "variables": {
+    "sharedTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/shared.json')]",
+    "appVmTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/appvm.json')]",
+    "jumpBoxVmTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/jumpboxvm.json')]",
+    "vmExtTemplateUrl": "[uri(deployment().properties.templateLink.uri, concat('nested/vmext-oms-enable.json'))]",
+    "dbTemplateUrl": "[uri(deployment().properties.templateLink.uri, 'nested/db.json')]",
+    "diagStorageAccountName": "[concat(parameters('prefix'), 'dg', uniqueString(resourceGroup().id))]",
+    "virtualNetwork": {
+      "name": "defaultvnet",
+      "addressPrefix": "10.0.0.0/16",
+      "subnets": {
+        "jumpBoxSubnet": {
+          "name": "jumpboxsubnet",
+          "addressPrefix": "10.0.1.0/24",
+          "nsg": "jumpboxsubnetnsg"
+        },
+        "appSubnet": {
+          "name": "appsubnet",
+          "addressPrefix": "10.0.2.0/24",
+          "nsg": "appsubnetnsg"
+        }
+      }
+    },
+    "sqlServerName": "[concat(parameters('prefix'), 'sqlsv', uniqueString(resourceGroup().id))]",
+    "appVmNamePrefix": "appvm",
+    "appVmNsgName": "appvmnsg",
+    "jumpBoxVmNamePrefix": "jumpboxvm",
+    "jumpBoxVmNsgName": "jumpboxvmnsg"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "sharedTemplateLink",
+      "apiVersion": "2016-09-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('sharedTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "diagStorageAccountName": {
+            "value": "[variables('diagStorageAccountName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetwork').name]"
+          },
+          "virtualNetworkAddressPrefix": {
+            "value": "[variables('virtualNetwork').addressPrefix]"
+          },
+          "jumpboxSubnetName": {
+            "value": "[variables('virtualNetwork').subnets.jumpBoxSubnet.name]"
+          },
+          "jumpboxSubnetAddressPrefix": {
+            "value": "[variables('virtualNetwork').subnets.jumpBoxSubnet.addressPrefix]"
+          },
+          "jumpBoxSubnetNsgName": {
+            "value": "[variables('virtualNetwork').subnets.jumpBoxSubnet.nsg]"
+          },
+          "appSubnetName": {
+            "value": "[variables('virtualNetwork').subnets.appSubnet.name]"
+          },
+          "appSubnetAddressPrefix": {
+            "value": "[variables('virtualNetwork').subnets.appSubnet.addressPrefix]"
+          },
+          "appSubnetNsgName": {
+            "value": "[variables('virtualNetwork').subnets.appSubnet.nsg]"
+          },
+          "appVmNsgName": {
+            "value": "[variables('appVmNsgName')]"
+          },
+          "jumpBoxVmNsgName": {
+            "value": "[variables('jumpBoxVmNsgName')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "appVmTemplateLink",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', 'sharedTemplateLink')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('appVmTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "diagStorageAccountName": {
+            "value": "[variables('diagStorageAccountName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetwork').name]"
+          },
+          "appSubnetName": {
+            "value": "[variables('virtualNetwork').subnets.appSubnet.name]"
+          },
+          "appVmNsgName": {
+            "value": "[variables('appVmNsgName')]"
+          },
+          "appLbDnsLabel": {
+            "value": "[parameters('appLbDnsLabel')]"
+          },
+          "appVmNamePrefix": {
+            "value": "[variables('appVmNamePrefix')]"
+          },
+          "appVmCount": {
+            "value": "[parameters('appVmCount')]"
+          },
+          "appVmSize": {
+            "value": "[parameters('appVmSize')]"
+          },
+          "vmSku": {
+            "value": "[parameters('vmSku')]"
+          },
+          "vmPublisher": {
+            "value": "[parameters('vmPublisher')]"
+          },
+          "vmOffer": {
+            "value": "[parameters('vmOffer')]"
+          },
+          "sqlServerName": {
+            "value": "[variables('sqlServerName')]"
+          },
+          "dbName": {
+            "value": "[parameters('dbName')]"
+          },
+          "dscScriptsUrl": {
+            "value": "[parameters('dscScriptsUrl')]"
+          },
+          "dscScript": {
+            "value": "[parameters('dscScript')]"
+          },
+          "dscFunction": {
+            "value": "[parameters('dscFunction')]"
+          },
+          "webdeploypkg": {
+            "value": "[parameters('webdeploypkg')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "jumpBoxVmTemplateLink",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', 'sharedTemplateLink')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('jumpBoxVmTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "diagStorageAccountName": {
+            "value": "[variables('diagStorageAccountName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetwork').name]"
+          },
+          "jumpBoxSubnetName": {
+            "value": "[variables('virtualNetwork').subnets.jumpBoxSubnet.name]"
+          },
+          "jumpBoxVmNsgName": {
+            "value": "[variables('jumpBoxVmNsgName')]"
+          },
+          "jumpBoxDnsLabel": {
+            "value": "[parameters('jumpBoxDnsLabel')]"
+          },
+          "jumpBoxVmNamePrefix": {
+            "value": "[variables('jumpBoxVmNamePrefix')]"
+          },
+          "jumpBoxVmCount": {
+            "value": "[parameters('jumpBoxVmCount')]"
+          },
+          "jumpboxVmSize": {
+            "value": "[parameters('jumpboxVmSize')]"
+          },
+          "vmSku": {
+            "value": "[parameters('vmSku')]"
+          },
+          "vmPublisher": {
+            "value": "[parameters('vmPublisher')]"
+          },
+          "vmOffer": {
+            "value": "[parameters('vmOffer')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "vmExtTemplatelink",
+      "apiVersion": "2016-09-01",
+      "condition": "[parameters('oms_enable')]",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', 'appvmTemplateLink')]",
+        "[concat('Microsoft.Resources/deployments/', 'jumpboxvmTemplateLink')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('vmExtTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appVmCount": {
+            "value": "[parameters('appVmCount')]"
+          },
+          "appVmNamePrefix": {
+            "value": "[variables('appVmNamePrefix')]"
+          },
+          "jumpBoxVmCount": {
+            "value": "[parameters('jumpBoxVmCount')]"
+          },
+          "jumpBoxVmNamePrefix": {
+            "value": "[variables('jumpBoxVmNamePrefix')]"
+          },
+          "omsWorkspaceId": {
+            "value": "[parameters('omsWorkspaceId')]"
+          },
+          "omsWorkspaceKey": {
+            "value": "[parameters('omsWorkspaceKey')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "dbTemplateLink",
+      "apiVersion": "2016-09-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('dbTemplateUrl')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "sqlServerName": {
+            "value": "[variables('sqlServerName')]"
+          },
+          "dbName": {
+            "value": "[parameters('dbName')]"
+          },
+          "dbCollation": {
+            "value": "[parameters('dbCollation')]"
+          },
+          "dbEdition": {
+            "value": "[parameters('dbEdition')]"
+          },
+          "dbMaxSizeBytes": {
+            "value": "[parameters('dbMaxSizeBytes')]"
+          },
+          "dbRequestedServiceObjectiveName": {
+            "value": "[parameters('dbRequestedServiceObjectiveName')]"
+          }
+        }
+      }
+    }
+  ]
+}
