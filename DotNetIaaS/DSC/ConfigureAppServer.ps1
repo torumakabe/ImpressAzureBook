@@ -258,7 +258,7 @@ Configuration Main
         $webClient.DownloadFile($using:webDeployPackagePath,$destination)
         $connectionStringName = "MyDbConnection-Web.config Connection String"
         $connectionString = "Server=tcp:"+ "$using:dbServerName" + ".database.windows.net,1433;Database=" + "$using:dbName" + ";User ID=" + "$using:dbUserName" + "@$using:dbServerName" + ";Password=" + "$using:dbPassword"+ ";Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
-        $connectionString | Out-File -filepath C:\WindowsAzure\outfile.txt -append -width 200
+#        $connectionString | Out-File -filepath C:\WindowsAzure\outfile.txt -append -width 200
 
         [string[]]$Arguments = @(
             "-verb:sync",
