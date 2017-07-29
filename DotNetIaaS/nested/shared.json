@@ -110,12 +110,12 @@
             }
           },
           {
-            "name": "Deny-Internet-All",
+            "name": "Deny-VNET-All",
             "properties": {
               "protocol": "Tcp",
               "sourcePortRange": "*",
               "destinationPortRange": "*",
-              "sourceAddressPrefix": "Internet",
+              "sourceAddressPrefix": "VirtualNetwork",
               "destinationAddressPrefix": "*",
               "access": "Deny",
               "priority": 200,
@@ -146,15 +146,28 @@
             }
           },
           {
-            "name": "Deny-Internet-All",
+            "name": "Allow-Inbound-RDP-JumpboxSubnet",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "[parameters('jumpBoxSubnetAddressPrefix')]",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 200,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "Deny-VNET-All",
             "properties": {
               "protocol": "Tcp",
               "sourcePortRange": "*",
               "destinationPortRange": "*",
-              "sourceAddressPrefix": "Internet",
+              "sourceAddressPrefix": "VirtualNetwork",
               "destinationAddressPrefix": "*",
               "access": "Deny",
-              "priority": 200,
+              "priority": 300,
               "direction": "Inbound"
             }
           }
