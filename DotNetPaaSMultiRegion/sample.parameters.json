@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "primaryLocation": {
+      "value": "japaneast"
+    },
+    "secondaryLocation": {
+      "value": "japanwest"
+    },
+    "prefix": {
+      "value": "azbook"
+    },
+    "skuName": {
+      "value": "S1"
+    },
+    "skuCapacity": {
+      "value": 2
+    },
+    "appDnsLabel": {
+      "value": "azbookap30"
+    },
+    "tmDnsLabel": {
+      "value": "azbooktmm30"
+    },
+    "adminUsername": {
+      "value": "azuser"
+    },
+    "adminPassword": {
+      "value": "!P@ss_w0rd#"
+    },
+    "dbName": {
+      "value": "azuserdb30"
+    },
+    "repoUrl": {
+      "value": "https://github.com/ToruMakabe/ImpressAzureBookDotNet.git"
+    },
+    "branch": {
+      "value": "master"
+    }
+  }
+}

@@ -10,6 +10,7 @@
         "japaneast",
         "westus",
         "westus2",
+        "eastus",
         "eastus2",
         "southeastasia"
       ],
@@ -25,6 +26,8 @@
         "japaneast",
         "westus",
         "westus2",
+        "eastus",
+        "eastus2",
         "southeastasia"
       ],
       "metadata": {
