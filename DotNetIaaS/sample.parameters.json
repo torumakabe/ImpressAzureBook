@@ -9,10 +9,10 @@
       "value": "azbook"
     },
     "jumpBoxDnsLabel": {
-      "value": "azbookjb01"
+      "value": "azbookjb10"
     },
     "appLbDnsLabel": {
-      "value": "azbookal01"
+      "value": "azbookal10"
     },
     "adminUsername": {
       "value": "azuser"
@@ -27,7 +27,7 @@
       "value": 1
     },
     "dbName": {
-      "value": "azbookdb01"
+      "value": "azbookdb10"
     },
     "dscScriptsUrl": {
       "value": "https://github.com/ToruMakabe/ImpressAzureBook/raw/master/DotNetIaaS/DSC/ConfigureAppServer.ps1.zip"

@@ -277,7 +277,8 @@
       "name": "appVmTemplateLink",
       "apiVersion": "2016-09-01",
       "dependsOn": [
-        "[concat('Microsoft.Resources/deployments/', 'sharedTemplateLink')]"
+        "[concat('Microsoft.Resources/deployments/', 'sharedTemplateLink')]",
+        "[concat('Microsoft.Resources/deployments/', 'dbTemplateLink')]"
       ],
       "properties": {
         "mode": "Incremental",
