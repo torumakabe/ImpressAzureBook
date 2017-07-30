@@ -3,10 +3,10 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "primaryLocation": {
-      "value": "japaneast"
+      "value": "westus2"
     },
     "secondaryLocation": {
-      "value": "japanwest"
+      "value": "eastus2"
     },
     "prefix": {
       "value": "azbook"
