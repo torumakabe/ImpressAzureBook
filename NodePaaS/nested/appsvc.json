@@ -17,12 +17,6 @@
     "hostingPlanName": {
       "type": "string"
     },
-    "hostingEnvironment": {
-      "type": "string"
-    },
-    "workerSizeId": {
-      "type": "string"
-    },
     "appDnsLabel": {
       "type": "string"
     },

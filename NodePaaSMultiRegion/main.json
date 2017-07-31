@@ -42,13 +42,6 @@
         "description": "General prefix of your resources (1 to 8 charactors)"
       }
     },
-    "hostingEnvironment": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Name of hosting environment"
-      }
-    },
     "skuTier": {
       "type": "string",
       "defaultValue": "Standard",
@@ -95,13 +88,6 @@
       "type": "string",
       "metadata": {
         "description": "DNS label of application (Scope:Global e.g. <appLbDnsLabel>.azurewebsites.net)"
-      }
-    },
-    "workerSizeId": {
-      "type": "string",
-      "defaultValue": "0",
-      "metadata": {
-        "description": "Size of App Service worker"
       }
     },
     "dockerRegistryImageName": {
@@ -183,14 +169,8 @@
           "skuCapacity": {
             "value": "[parameters('skuCapacity')]"
           },
-          "workerSizeId": {
-            "value": "[parameters('workerSizeId')]"
-          },
           "hostingPlanName": {
             "value": "[concat(variables('hostingPlanName'), copyindex())]"
-          },
-          "hostingEnvironment": {
-            "value": "[parameters('hostingEnvironment')]"
           },
           "appDnsLabel": {
             "value": "[concat(parameters('appDnsLabel'),copyindex())]"

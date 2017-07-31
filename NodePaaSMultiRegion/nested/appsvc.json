@@ -17,12 +17,6 @@
     "hostingPlanName": {
       "type": "string"
     },
-    "hostingEnvironment": {
-      "type": "string"
-    },
-    "workerSizeId": {
-      "type": "string"
-    },
     "appDnsLabel": {
       "type": "string"
     },
@@ -48,10 +42,7 @@
       },
       "properties": {
         "name": "[parameters('hostingPlanName')]",
-        "workerSizeId": "[parameters('workerSizeId')]",
-        "reserved": true,
-        "numberOfWorkers": "1",
-        "hostingEnvironment": "[parameters('hostingEnvironment')]"
+        "reserved": true
       }
     },
     {
