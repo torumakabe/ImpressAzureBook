@@ -1,0 +1,21 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus2"
+    },
+    "prefix": {
+      "value": "azbook"
+    },
+    "appDnsLabel": {
+      "value": "azbookap50"
+    },
+    "dockerRegistryImageName": {
+      "value": "torumakabe/nodetodo:1.0.0"
+    },
+    "dbAccountName": {
+      "value": "azbookdb50"
+    }
+  }
+}

@@ -47,11 +47,7 @@
         "capacity": "[parameters('skuCapacity')]"
       },
       "properties": {
-        "name": "[parameters('hostingPlanName')]",
-        "workerSizeId": "[parameters('workerSizeId')]",
-        "reserved": true,
-        "numberOfWorkers": "1",
-        "hostingEnvironment": "[parameters('hostingEnvironment')]"
+        "name": "[parameters('hostingPlanName')]"
       }
     },
     {

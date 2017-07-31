@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus2"
+    },
+    "prefix": {
+      "value": "azbook"
+    },
+    "jumpBoxDnsLabel": {
+      "value": "azbookjb40"
+    },
+    "appLbDnsLabel": {
+      "value": "azbookap40"
+    },
+    "adminUsername": {
+      "value": "azuser"
+    },
+    "sshKeyData": {
+      "value": "ssh-rsa AZBOOK1234567890QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm=="
+    },
+    "appVmCount": {
+      "value": 2
+    },
+    "jumpBoxVmCount": {
+      "value": 1
+    },
+    "dbAccountName": {
+      "value": "azbookdb40"
+    },
+    "dockerRegistryImageName": {
+      "value": "torumakabe/nodetodo:1.0.0"
+    },
+    "oms": {
+      "value": "disable"
+    },
+    "omsWorkspaceId": {
+      "value": "1111111-22222222-33333333-44444444-55555555"
+    },
+    "omsWorkspaceKey": {
+      "value": "AZBOOK+azbook/123456AzBook+aZbOOK/azb00kAZBOOK+azbook/123456AzBook+aZbOOK+azb00k==="
+    }
+  }
+}
