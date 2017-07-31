@@ -6,12 +6,8 @@
       "type": "string",
       "defaultValue": "japaneast",
       "allowedValues": [
-        "japanwest",
         "japaneast",
         "westus",
-        "westus2",
-        "eastus",
-        "eastus2",
         "southeastasia"
       ],
       "metadata": {

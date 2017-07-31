@@ -6,12 +6,8 @@
       "type": "string",
       "defaultValue": "japaneast",
       "allowedValues": [
-        "japanwest",
         "japaneast",
         "westus",
-        "westus2",
-        "eastus",
-        "eastus2",
         "southeastasia"
       ],
       "metadata": {
@@ -22,12 +18,8 @@
       "type": "string",
       "defaultValue": "southeastasia",
       "allowedValues": [
-        "japanwest",
         "japaneast",
         "westus",
-        "westus2",
-        "eastus",
-        "eastus2",
         "southeastasia"
       ],
       "metadata": {
@@ -189,7 +181,6 @@
       "name": "sharedTemplateLink",
       "apiVersion": "2016-09-01",
       "dependsOn": [
-        "[concat('Microsoft.Resources/deployments/', 'dbTemplateLink')]",
         "[concat('Microsoft.Resources/deployments/', 'appServiceTemplateLink', '0')]",
         "[concat('Microsoft.Resources/deployments/', 'appServiceTemplateLink', '1')]"
       ],

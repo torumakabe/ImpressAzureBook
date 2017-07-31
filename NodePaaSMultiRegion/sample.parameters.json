@@ -2,8 +2,11 @@
   "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "location": {
+    "primaryLocation": {
       "value": "japaneast"
+    },
+    "secondaryLocation": {
+      "value": "southeastasia"
     },
     "prefix": {
       "value": "azbook"
@@ -14,14 +17,17 @@
     "skuCapacity": {
       "value": 2
     },
+    "tmDnsLabel": {
+      "value": "azbooktm60"
+    },
     "appDnsLabel": {
-      "value": "azbookap50"
+      "value": "azbookap60"
     },
     "dockerRegistryImageName": {
       "value": "torumakabe/nodetodo:1.0.0"
     },
     "dbAccountName": {
-      "value": "azbookdb50"
+      "value": "azbookdb60"
     }
   }
 }
