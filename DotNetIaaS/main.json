@@ -54,6 +54,7 @@
     "appVmCount": {
       "type": "int",
       "defaultValue": 2,
+      "minValue": 1,
       "metadata": {
         "description": "Number of app servers"
       }
@@ -68,6 +69,7 @@
     "jumpBoxVmCount": {
       "type": "int",
       "defaultValue": 1,
+      "minValue": 1,
       "metadata": {
         "description": "Number of jumpbox servers"
       }
