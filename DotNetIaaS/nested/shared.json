@@ -112,7 +112,7 @@
           {
             "name": "Deny-VNET-All",
             "properties": {
-              "protocol": "Tcp",
+              "protocol": "*",
               "sourcePortRange": "*",
               "destinationPortRange": "*",
               "sourceAddressPrefix": "VirtualNetwork",
@@ -161,7 +161,7 @@
           {
             "name": "Deny-VNET-All",
             "properties": {
-              "protocol": "Tcp",
+              "protocol": "*",
               "sourcePortRange": "*",
               "destinationPortRange": "*",
               "sourceAddressPrefix": "VirtualNetwork",
