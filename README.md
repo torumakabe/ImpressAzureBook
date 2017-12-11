@@ -13,8 +13,9 @@
 * Node.js & AngularJS & Cosmos DB Todoアプリケーション
   * NodeIaaS
     * Linux仮想マシンにコンテナー化したアプリをデプロイ
+    * sshの公開鍵は別途作ってパラメータファイルで指定してください
   * NodePaaS
-    * Web Appにアプリを配置
+    * Web App for Containersにアプリを配置
   * NodePaaSMultiRegion
     * NodePaaSのマルチリージョンパターン
 
@@ -44,5 +45,6 @@ az group deployment create -g azbook-dotnetiaas-rg --template-uri https://raw.gi
 
 ## 改訂履歴
 
+* 2017/12/11: OMS Agent for Linuxのバージョンを1.4へアップデート
 * 2017/12/11: サンプルパラメータのパスワード文字数を修正
 * 2017/12/09: NSGルールの修正
