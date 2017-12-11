@@ -27,7 +27,8 @@ cp sample.parameters.json parameters.json
 ```
 
 ### パラメータファイルの編集
-書籍を参考に、各パラメータを編集します。
+書籍を参考に、パラメータファイル parameters.json の各パラメータを編集します。
+他読者とリソース名が重複しないよう、prefixやDNSラベルの命名を工夫してください。
 
 ### リソースグループの作成
 以下は .NET IaaSパターン向けのリソースグループを作る例です。
@@ -36,7 +37,7 @@ az group create -n azbook-dotnetiaas-rg -l japaneast
 ```
 
 ### テンプレートのデプロイ
-先に編集したローカルのパラメータファイルを指定し、デプロイします。テンプレートのリポジトリをfork、cloneした場合は、--template-uriパラメータの変更を忘れないでください。
+以下は .NET IaaSパターン向けのテンプレートのデプロイする例です。先に編集したローカルのパラメータファイルを指定し、デプロイします。テンプレートのリポジトリをfork、cloneした場合は、--template-uriパラメータの変更を忘れないでください。
 ```
 az group deployment create -g azbook-dotnetiaas-rg --template-uri https://raw.githubusercontent.com/ToruMakabe/ImpressAzureBook/master/DotNetIaaS/main.json --parameters ./parameters.json
 ```
